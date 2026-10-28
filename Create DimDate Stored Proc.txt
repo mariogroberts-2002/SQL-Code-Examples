@@ -1,0 +1,68 @@
+-- Step 1: Create the stored procedure [dbo].[InsertDimDateRange]
+-- The procedure takes two parameters: @StartDate and @EndDate (both DATETIME2(6))
+-- It uses a WHILE loop to iterate from @StartDate to @EndDate (inclusive)
+-- For each date, it calculates all required attributes and inserts a row into [dbo].[DimDate]
+-- Avoids recursion and unsupported features per Microsoft Fabric Data Warehouse constraints
+
+CREATE OR ALTER PROCEDURE [dbo].[InsertDimDateRange]
+    @StartDate DATETIME2(6),
+    @EndDate DATETIME2(6)
+AS
+BEGIN
+    -- Step 2: Declare a variable to hold the current date in the loop
+    DECLARE @CurrentDate DATETIME2(6);
+
+    -- Step 3: Initialize @CurrentDate to @StartDate
+    SET @CurrentDate = @StartDate;
+
+    -- Step 4: Loop from @CurrentDate to @EndDate (inclusive)
+    WHILE @CurrentDate <= @EndDate
+    BEGIN
+        -- Step 5: Calculate all date attributes for the current date
+        DECLARE @DateKey INT = CAST(FORMAT(@CurrentDate, 'yyyyMMdd') AS INT);
+        DECLARE @Day SMALLINT = DATEPART(DAY, @CurrentDate);
+        DECLARE @Month SMALLINT = DATEPART(MONTH, @CurrentDate);
+        DECLARE @MonthName VARCHAR(20) = DATENAME(MONTH, @CurrentDate);
+        DECLARE @Quarter SMALLINT = DATEPART(QUARTER, @CurrentDate);
+        DECLARE @Year SMALLINT = DATEPART(YEAR, @CurrentDate);
+        DECLARE @DayOfWeek SMALLINT = DATEPART(WEEKDAY, @CurrentDate);
+        DECLARE @DayName VARCHAR(20) = DATENAME(WEEKDAY, @CurrentDate);
+        DECLARE @WeekOfYear SMALLINT = DATEPART(WEEK, @CurrentDate);
+        DECLARE @IsWeekend BIT = CASE WHEN DATEPART(WEEKDAY, @CurrentDate) IN (1,7) THEN 1 ELSE 0 END;
+        -- Step 6: For IsHoliday, set to 0 (no holiday logic provided)
+        DECLARE @IsHoliday BIT = 0;
+
+        -- Step 7: Insert the row into [dbo].[DimDate]
+        INSERT INTO [dbo].[DimDate] (
+            [DateKey],
+            [Date],
+            [Day],
+            [Month],
+            [MonthName],
+            [Quarter],
+            [Year],
+            [DayOfWeek],
+            [DayName],
+            [WeekOfYear],
+            [IsWeekend],
+            [IsHoliday]
+        )
+        VALUES (
+            @DateKey,
+            @CurrentDate,
+            @Day,
+            @Month,
+            @MonthName,
+            @Quarter,
+            @Year,
+            @DayOfWeek,
+            @DayName,
+            @WeekOfYear,
+            @IsWeekend,
+            @IsHoliday
+        );
+
+        -- Step 8: Move to the next date
+        SET @CurrentDate = DATEADD(DAY, 1, @CurrentDate);
+    END
+END
